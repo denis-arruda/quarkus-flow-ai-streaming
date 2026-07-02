@@ -14,9 +14,13 @@ class ContentPublishedEventTest {
 
 		var json = event.toJSON();
 
-		assertThat(json.getString("contentId")).isEqualTo("c-001");
-		assertThat(json.getString("title")).isEqualTo("Inception");
-		assertThat(json.getString("genre")).isEqualTo("Sci-Fi");
+		assertThat(json.getString("specversion")).isEqualTo("1.0");
+		assertThat(json.getString("type")).isEqualTo("dev.denisarruda.content.published");
+		assertThat(json.getString("id")).isEqualTo("c-001");
+		var data = json.getJsonObject("data");
+		assertThat(data.getString("contentId")).isEqualTo("c-001");
+		assertThat(data.getString("title")).isEqualTo("Inception");
+		assertThat(data.getString("genre")).isEqualTo("Sci-Fi");
 	}
 
 	@Test
@@ -26,8 +30,9 @@ class ContentPublishedEventTest {
 
 		var json = event.toJSON();
 
-		assertThat(json.getString("description")).isEqualTo("desc");
-		assertThat(json.getString("region")).isEqualTo("DE");
-		assertThat(json.getString("timestamp")).isEqualTo("2026-01-01T00:00:00Z");
+		var data = json.getJsonObject("data");
+		assertThat(data.getString("description")).isEqualTo("desc");
+		assertThat(data.getString("region")).isEqualTo("DE");
+		assertThat(data.getString("timestamp")).isEqualTo("2026-01-01T00:00:00Z");
 	}
 }

@@ -1,5 +1,29 @@
 services:
 
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "3000:3000"
+      - "4317:4317"
+    volumes:
+      - ./grafana/otelcol-config.yaml:/otel-lgtm/otelcol-config.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   kafka:
     image: apache/kafka:latest
     environment:
@@ -44,15 +68,43 @@ services:
       kafka:
         condition: service_healthy
 
+  content-pipeline:
+    image: denisarruda/content-pipeline:1.0-SNAPSHOT
+    pull_policy: never
+    ports:
+      - "9096:8080"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      LLM_API_KEY: ${LLM_API_KEY}
+      QUARKUS_REDIS_HOSTS: redis://redis:6379
+      QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      lgtm:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/q/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   frontend-web:
     image: denisarruda/frontend-web:1.0-SNAPSHOT
+    pull_policy: never
     ports:
       - "9095:8081"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
     depends_on:
       kafka-init:
         condition: service_completed_successfully
+      lgtm:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/q/health || exit 1"]
       interval: 15s
